@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Data Visualizer — Python X</title>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+--paper:#f6f6fb;
+--dot:rgba(79,70,229,0.14);
+--ink:#211d3d;
+--ink-soft:#726e93;
+--indigo:#4f46e5;
+--indigo-soft:#e1defb;
+--coral:#f2725a;
+--coral-soft:#fbe1db;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+min-height:100vh;
+display:flex; align-items:center; justify-content:center;
+padding:28px 14px;
+font-family:'Inter',sans-serif;
+color:var(--ink);
+background:
+radial-gradient(var(--dot) 1.4px, transparent 1.4px),
+var(--paper);
+background-size:18px 18px;
+}
+
+.card{
+width:100%; max-width:460px;
+background:#ffffff;
+border:1px solid #e4e2f3;
+border-radius:18px;
+padding:30px 26px 26px;
+box-shadow:0 26px 54px -26px rgba(79,70,229,0.28);
+}
+
+.eyebrow{
+font-family:'JetBrains Mono',monospace;
+font-size:11px;
+letter-spacing:1.2px;
+text-transform:uppercase;
+color:var(--indigo);
+font-weight:600;
+margin-bottom:8px;
+}
+h1{
+font-family:'Manrope',sans-serif;
+font-size:22px;
+font-weight:800;
+line-height:1.3;
+margin-bottom:22px;
+}
+
+.day-grid{
+display:grid;
+grid-template-columns:repeat(7, 1fr);
+gap:6px;
+margin-bottom:18px;
+}
+.day-field{display:flex; flex-direction:column; align-items:center; gap:6px;}
+.day-field label{
+font-family:'JetBrains Mono',monospace;
+font-size:11px;
+font-weight:600;
+color:var(--ink-soft);
+}
+.day-field input{
+width:100%;
+text-align:center;
+padding:10px 4px;
+border-radius:8px;
+border:1.5px solid #e4e2f3;
+background:#faf9ff;
+color:var(--ink);
+font-family:'JetBrains Mono',monospace;
+font-size:14px;
+outline:none;
+transition:border-color .2s ease, background .2s ease;
+}
+.day-field input::-webkit-outer-spin-button,
+.day-field input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+.day-field input{-moz-appearance:textfield;}
+.day-field input:focus{border-color:var(--indigo); background:var(--indigo-soft);}
+
+.hint{
+font-size:12px;
+color:var(--ink-soft);
+margin-bottom:18px;
+}
+
+button{
+border:none; cursor:pointer;
+font-family:'Manrope',sans-serif;
+font-weight:700; font-size:14.5px;
+border-radius:10px;
+padding:13px 18px;
+width:100%;
+transition:opacity .15s ease, transform .15s ease;
+}
+button:active{transform:scale(0.98);}
+button:disabled{opacity:0.5; cursor:default;}
+#viz-btn{background:var(--indigo); color:#fff;}
+#viz-btn:hover:not(:disabled){opacity:0.9;}
+
+.status{
+font-size:12.5px;
+color:var(--ink-soft);
+text-align:center;
+margin-top:10px;
+min-height:16px;
+font-family:'JetBrains Mono',monospace;
+}
+
+/* Result view */
+#step-result{display:none;}
+#step-result.show{display:block;}
+
+.chart{
+display:flex;
+align-items:flex-end;
+justify-content:space-between;
+gap:6px;
+height:150px;
+padding:0 2px 8px;
+margin-bottom:6px;
+border-bottom:1.5px solid #e4e2f3;
+}
+.bar-col{
+flex:1;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:flex-end;
+height:100%;
+}
+.bar-value{
+font-family:'JetBrains Mono',monospace;
+font-size:10.5px;
+color:var(--ink-soft);
+margin-bottom:4px;
+}
+.bar{
+width:100%;
+max-width:28px;
+border-radius:6px 6px 3px 3px;
+background:var(--indigo-soft);
+height:0%;
+transition:height .7s cubic-bezier(.2,.8,.2,1);
+}
+.bar.best{background:var(--indigo);}
+.day-labels{
+display:flex;
+justify-content:space-between;
+gap:6px;
+margin-bottom:22px;
+}
+.day-labels span{
+flex:1;
+text-align:center;
+font-family:'JetBrains Mono',monospace;
+font-size:10.5px;
+color:var(--ink-soft);
+}
+
+.insight-card{
+background:var(--indigo-soft);
+border-radius:12px;
+padding:16px 16px;
+margin-bottom:12px;
+}
+.insight-card .label{
+font-size:11px;
+text-transform:uppercase;
+letter-spacing:0.6px;
+color:var(--indigo);
+font-weight:700;
+margin-bottom:4px;
+}
+.insight-card .text{font-size:13.5px; line-height:1.5; color:var(--ink);}
+
+.stat-row{
+display:flex;
+gap:10px;
+margin-bottom:22px;
+}
+.stat{
+flex:1;
+text-align:center;
+padding:12px 6px;
+background:#faf9ff;
+border:1px solid #e4e2f3;
+border-radius:10px;
+}
+.stat .num{font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; color:var(--ink);}
+.stat .lbl{font-size:10px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.5px; margin-top:3px;}
+
+#reset-btn{
+background:#faf9ff;
+color:var(--ink);
+border:1px solid #e4e2f3;
+}
+#reset-btn:hover{background:#f1efff;}
+
+@media (max-width: 420px){
+body{padding:16px 10px; align-items:flex-start;}
+.card{padding:24px 16px 20px; border-radius:14px;}
+h1{font-size:19px;}
+.day-field label{font-size:9.5px;}
+.day-field input{padding:8px 2px; font-size:12px;}
+.day-grid{gap:4px;}
+.chart{height:120px;}
+.bar-value{font-size:9px;}
+.stat .num{font-size:15px;}
+.stat{padding:10px 4px;}
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+
+<div id="step-input">
+<div class="eyebrow">This week's data</div>
+<h1>How many hours did you work each day?</h1>
+
+<div class="day-grid">
+<div class="day-field"><label>Mon</label><input type="number" class="day-input" data-day="0" min="0" max="24" placeholder="0" /></div>
+<div class="day-field"><label>Tue</label><input type="number" class="day-input" data-day="1" min="0" max="24" placeholder="0" /></div>
+<div class="day-field"><label>Wed</label><input type="number" class="day-input" data-day="2" min="0" max="24" placeholder="0" /></div>
+<div class="day-field"><label>Thu</label><input type="number" class="day-input" data-day="3" min="0" max="24" placeholder="0" /></div>
+<div class="day-field"><label>Fri</label><input type="number" class="day-input" data-day="4" min="0" max="24" placeholder="0" /></div>
+<div class="day-field"><label>Sat</label><input type="number" class="day-input" data-day="5" min="0" max="24" placeholder="0" /></div>
+<div class="day-field"><label>Sun</label><input type="number" class="day-input" data-day="6" min="0" max="24" placeholder="0" /></div>
+</div>
+
+<div class="hint">Enter hours for each day — decimals like 1.5 are fine.</div>
+
+<button id="viz-btn">Visualize my week</button>
+<div class="status" id="status"></div>
+</div>
+
+<div id="step-result">
+<div class="eyebrow">Your week, visualized</div>
+<h1 id="result-heading">Here's what the data says</h1>
+
+<div class="chart" id="chart"></div>
+<div class="day-labels">
+<span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+</div>
+
+<div class="insight-card">
+<div class="label">Insight</div>
+<div class="text" id="insight-text"></div>
+</div>
+
+<div class="stat-row">
+<div class="stat"><div class="num" id="stat-total"></div><div class="lbl">Total hrs</div></div>
+<div class="stat"><div class="num" id="stat-avg"></div><div class="lbl">Daily avg</div></div>
+<div class="stat"><div class="num" id="stat-best"></div><div class="lbl">Best day</div></div>
+</div>
+
+<button id="reset-btn">Try a different week</button>
+</div>
+
+</div>
+
+<script id="python-source" type="text/plain">
+import json
+
+DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def analyze_week(values):
+    total = sum(values)
+    average = total / 7
+
+    best_idx = values.index(max(values))
+    worst_idx = values.index(min(values))
+
+    first_half_avg = sum(values[0:3]) / 3  # Mon-Wed
+    second_half_avg = sum(values[4:7]) / 3  # Fri-Sun
+
+    diff = second_half_avg - first_half_avg
+    if abs(diff) < 0.5:
+        trend = "steady"
+    elif diff > 0:
+        trend = "improving"
+    else:
+        trend = "declining"
+
+    peak = max(values) if max(values) > 0 else 1
+    bar_heights = [round((v / peak) * 100) for v in values]
+
+    return {
+        "total": round(total, 1),
+        "average": round(average, 1),
+        "best_day": DAYS[best_idx],
+        "worst_day": DAYS[worst_idx],
+        "trend": trend,
+        "bar_heights": bar_heights,
+        "values": values,
+    }
+
+
+values = json.loads(values_json)
+result = analyze_week(values)
+json.dumps(result)
+</script>
+
+<script>
+let pyodideInstance = null;
+
+const vizBtn = document.getElementById('viz-btn');
+const statusEl = document.getElementById('status');
+const stepInput = document.getElementById('step-input');
+const stepResult = document.getElementById('step-result');
+const resetBtn = document.getElementById('reset-btn');
+const chart = document.getElementById('chart');
+
+async function ensurePyodide(){
+if(!pyodideInstance){
+statusEl.textContent = "Loading...";
+pyodideInstance = await loadPyodide();
+}
+return pyodideInstance;
+}
+
+function collectValues(){
+const values = new Array(7).fill(0);
+document.querySelectorAll('.day-input').forEach(el => {
+values[parseInt(el.dataset.day)] = parseFloat(el.value) || 0;
+});
+return values;
+}
+
+async function runAnalysis(){
+const values = collectValues();
+if(values.every(v => v === 0)){
+statusEl.textContent = "Enter at least one day's hours.";
+return;
+}
+
+vizBtn.disabled = true;
+const pyodide = await ensurePyodide();
+statusEl.textContent = "Crunching numbers…";
+
+pyodide.globals.set('values_json', JSON.stringify(values));
+
+const src = document.getElementById('python-source').textContent;
+const resultJson = await pyodide.runPythonAsync(src);
+const result = JSON.parse(resultJson);
+
+renderResult(result);
+statusEl.textContent = "";
+vizBtn.disabled = false;
+}
+
+const TREND_COPY = {
+improving: (r) => `You picked up momentum — your second half of the week averaged more work time than the first. ${r.best_day} was your strongest day.`,
+declining: (r) => `You started strong but tapered off later in the week. ${r.best_day} was your peak — worth protecting that slot going forward.`,
+steady: (r) => `Pretty consistent across the week, hovering around ${r.average} hrs/day. ${r.best_day} edged out as your best.`,
+};
+
+function renderResult(r){
+chart.innerHTML = r.bar_heights.map((h, i) => {
+const isBest = r.values[i] === Math.max(...r.values);
+return `<div class="bar-col"> <div class="bar-value">${r.values[i]}</div>
+<div class="bar ${isBest ? 'best' : ''}" data-height="${h}"></div> </div>`;
+}).join('');
+
+requestAnimationFrame(() => {
+document.querySelectorAll('.bar').forEach(bar => {
+bar.style.height = bar.dataset.height + "%";
+});
+});
+
+document.getElementById('insight-text').textContent = TREND_COPY[r.trend](r);
+document.getElementById('stat-total').textContent = r.total;
+document.getElementById('stat-avg').textContent = r.average;
+document.getElementById('stat-best').textContent = r.best_day;
+
+stepInput.style.display = "none";
+stepResult.classList.add('show');
+}
+
+vizBtn.addEventListener('click', runAnalysis);
+resetBtn.addEventListener('click', () => {
+stepResult.classList.remove('show');
+stepInput.style.display = "block";
+document.querySelectorAll('.day-input').forEach(el => el.value = "");
+});
+</script>
+
+</body>
+</html>
